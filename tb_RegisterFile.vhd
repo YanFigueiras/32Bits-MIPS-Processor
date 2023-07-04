@@ -13,7 +13,7 @@ architecture tb_arch of tb_RegisterFile is
 			A3: in STD_LOGIC_VECTOR(4 DOWNTO 0);
 			WD3: in STD_LOGIC_VECTOR(31 DOWNTO 0);
 			WE3: in STD_LOGIC;
-			CLK: in STD_LOGIC;
+			clk: in STD_LOGIC;
 
 			RD1: out STD_LOGIC_VECTOR(31 DOWNTO 0);
 			RD2: out STD_LOGIC_VECTOR(31 DOWNTO 0)
@@ -34,7 +34,7 @@ begin
 			A3 => A3_tb,
 			WD3 => WD3_tb,
 			WE3 => WE3_tb,
-			CLK => clk_tb,
+			clk => clk_tb,
 			RD1 => RD1_tb,
 			RD2 => RD2_tb
 		);

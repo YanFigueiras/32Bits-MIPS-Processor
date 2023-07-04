@@ -9,7 +9,7 @@ entity RegisterFile is
 		A3: in STD_LOGIC_VECTOR(4 DOWNTO 0); -- Rt (20:16) ou Rd (15:11)
 		WD3: in STD_LOGIC_VECTOR(31 DOWNTO 0);
 		WE3: in STD_LOGIC; -- habilitação de escrita para A3 e WD3
-		CLK: in STD_LOGIC;
+		clk: in STD_LOGIC;
 
 		RD1: out STD_LOGIC_VECTOR(31 DOWNTO 0);
 		RD2: out STD_LOGIC_VECTOR(31 DOWNTO 0)
@@ -24,9 +24,9 @@ begin
 	RD1 <= regfile(CONV_INTEGER(A1)); -- lê dados do registrador especificado pelo endereço A1
 	RD2 <= regfile(CONV_INTEGER(A2)); -- lê dados do registrador especificado pelo endereço A2
 
-	process(CLK)
+	process(clk)
 	begin
-		if rising_edge(CLK) then
+		if rising_edge(clk) then
 			if WE3 = '1' then
 				regfile(CONV_INTEGER(A3)) <= WD3; -- escreve os dados de WD3 no registrador especificado pelo endereço A3
 			end if;
