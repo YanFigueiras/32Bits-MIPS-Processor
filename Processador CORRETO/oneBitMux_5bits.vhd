@@ -1,0 +1,22 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity oneBitMux_5bits is
+	PORT (
+		Control:	in STD_LOGIC;
+		InputA:	in STD_LOGIC_VECTOR(4 DOWNTO 0);
+		InputB:	in STD_LOGIC_VECTOR(4 DOWNTO 0);
+		
+		Output: out STD_LOGIC_VECTOR(4 DOWNTO 0)
+	);
+end oneBitMux_5bits;
+
+architecture Behavioral of oneBitMux_5bits is
+begin
+	with Control select
+	Output <= 
+	InputA WHEN '0',
+	InputB WHEN '1',
+	("00000") WHEN others;
+
+end Behavioral;

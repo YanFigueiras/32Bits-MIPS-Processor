@@ -1,0 +1,252 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+entity datapath is
+    port (
+			  CLK  : in std_logic;
+			  PCEn  : in std_logic;
+			  IorD  : in std_logic;
+			  MemWrite : in std_logic;
+			  IRWrite : in std_logic;
+			  RegDst  : in std_logic;
+			  MemtoReg : in std_logic;
+			  RegWrite : in std_logic;
+			  ALUSrcA : in std_logic;
+			  ALUSrcB : in std_logic_vector(1 downto 0);
+			  ALUControl : in std_logic_vector(2 downto 0);
+			  PCSrc: in std_logic_vector(1 downto 0);
+			  opcode : out	std_logic_vector(5 downto 0);
+			  funct  : out std_logic_vector (5 downto 0);
+			  ReadDataAmostra  : out std_logic_vector (31 downto 0);
+			  Zero: out std_logic
+    );
+end datapath;
+
+architecture RTL OF datapath is
+	component ALU is 
+			port (
+				ALUControl: in STD_LOGIC_VECTOR(2 DOWNTO 0);
+				ALUSrcA: in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				ALUSrcB: in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				ALUResult: out STD_LOGIC_VECTOR(31 DOWNTO 0);
+				Zero: out STD_LOGIC
+			);
+		end component;	
+		
+		component leftShift2 is 
+			port (
+			entrada: in std_logic_vector (31 downto 0);
+			saida: out std_logic_vector (31 downto 0)
+			);
+		end component;
+		
+		component leftShift2_26to28bits is 
+			port (
+			entrada: in std_logic_vector (25 downto 0);
+			saida: out std_logic_vector (27 downto 0)
+			);
+		end component;
+		
+		component dataInstrMemory is 
+			Port ( 
+					memWrite : in  STD_LOGIC;
+					writeData : in  STD_LOGIC_VECTOR (31 downto 0);
+					readData : out  STD_LOGIC_VECTOR (31 downto 0);
+				   readDataAmostra : out  STD_LOGIC_VECTOR (31 downto 0);
+					address : in  STD_LOGIC_VECTOR (31 downto 0);
+					CLK : in  STD_LOGIC
+			  );
+		end component;
+				
+		component programCounter is 
+			 port (
+				  CLK: in std_logic;
+				  EN: in std_logic;
+				  D: in std_logic_vector(31 downto 0);
+				  Q: out std_logic_vector(31 downto 0)
+			 );
+		end component;	
+		
+		component RegisterFile is 
+			port (
+				A1: in STD_LOGIC_VECTOR(4 DOWNTO 0);
+				A2: in STD_LOGIC_VECTOR(4 DOWNTO 0); 
+				A3: in STD_LOGIC_VECTOR(4 DOWNTO 0); 
+				WD3: in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				WE3: in STD_LOGIC; 
+				clk: in STD_LOGIC;
+
+				RD1: out STD_LOGIC_VECTOR(31 DOWNTO 0);
+				RD2: out STD_LOGIC_VECTOR(31 DOWNTO 0)
+			);
+		end component;	
+		
+		component register32Bits is 
+			 port (
+				  CLK: in std_logic;
+				  EN: in std_logic;
+				  D: in std_logic_vector(31 downto 0);
+				  Q: out std_logic_vector(31 downto 0)
+			 );
+		end component;	
+		
+		component SignExtender is 
+			port (
+				Input: in STD_LOGIC_VECTOR(15 DOWNTO 0);
+				Output: out STD_LOGIC_VECTOR(31 DOWNTO 0)
+			);
+		end component;	
+		
+		component twoBitMux is 
+			port (
+				Control:	in STD_LOGIC_VECTOR(1 DOWNTO 0);
+				InputA:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				InputB:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				InputC:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				InputD:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				Output: out STD_LOGIC_VECTOR(31 DOWNTO 0)
+			);
+		end component;	
+		
+		component oneBitMux is 
+			PORT (
+				Control:	in STD_LOGIC;
+				InputA:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				InputB:	in STD_LOGIC_VECTOR(31 DOWNTO 0);
+				Output: out STD_LOGIC_VECTOR(31 DOWNTO 0)
+			);
+		end component;	
+		
+		component oneBitMux_5bits is 
+			PORT (
+				Control:	in STD_LOGIC;
+				InputA:	in STD_LOGIC_VECTOR(4 DOWNTO 0);
+				InputB:	in STD_LOGIC_VECTOR(4 DOWNTO 0);
+				Output: out STD_LOGIC_VECTOR(4 DOWNTO 0)
+			);
+		end component;	
+		
+
+		signal FioPcIn : std_logic_vector(31 downto 0); 
+		signal FioPcOut : std_logic_vector(31 downto 0);
+		signal FioAdr : std_logic_vector(31 downto 0);
+		signal FioReadData : std_logic_vector(31 downto 0);
+		signal FioInstr : std_logic_vector(31 downto 0);
+		signal FioData : std_logic_vector(31 downto 0);
+		signal FioA3 : std_logic_vector(4 downto 0);
+		signal FioWD3 : std_logic_vector(31 downto 0);
+		signal FioRD1toRegD1 : std_logic_vector(31 downto 0);
+		signal FioRD2toRegD2 : std_logic_vector(31 downto 0);
+		signal FioA : std_logic_vector(31 downto 0);
+		signal FioB : std_logic_vector(31 downto 0);
+		signal FioSignImm : std_logic_vector(31 downto 0);
+		signal FioShiftOut : std_logic_vector(31 downto 0);
+		signal FioSrcA : std_logic_vector(31 downto 0);
+		signal FioSrcB : std_logic_vector(31 downto 0);
+		signal FioALUResult : std_logic_vector(31 downto 0);
+		signal FioALUOut : std_logic_vector(31 downto 0);
+		signal FioAddresShiftOut : std_logic_vector(27 downto 0);
+		signal Concatenated : std_logic_vector(31 downto 0);
+		
+	begin
+		opcode(5 downto 0) <= FioInstr(31 downto 26);
+		funct(5 downto 0) <= FioInstr(5 downto 0);
+		Concatenated <= std_logic_vector(concatenate(FioPCOut(31 downto 28),FioAddresShiftOut(27 downto 0)));
+		
+		PC: programCounter port map ( CLK => CLK, 													
+																 EN => PCEn,
+																 D(31 downto 0) => FioPcIn(31 downto 0),
+																 Q(31 downto 0) => FioPcOut(31 downto 0));
+											
+		IorDMUX: oneBitMux port map ( Control => IorD,
+												InputA(31 downto 0) => FioPcOut(31 downto 0),						
+												InputB(31 downto 0) => FioALUOut(31 downto 0),
+												Output(31 downto 0) => FioAdr(31 downto 0));
+		
+		Memory: dataInstrMemory port map (  CLK => CLK,
+														memWrite => MemWrite,
+														writeData(31 downto 0) => FioB(31 downto 0),
+														readData(31 downto 0) => FioReadData(31 downto 0),
+														readDataAmostra(31 downto 0) => ReadDataAmostra(31 downto 0),
+														address(31 downto 0) => FioAdr(31 downto 0));
+											
+		intructionRegister : register32Bits port map ( CLK => CLK, 													
+																	  EN => IRWrite,
+																	  D(31 downto 0) => FioReadData(31 downto 0),
+																	  Q(31 downto 0) => FioInstr(31 downto 0));
+																	  
+		dataRegister: register32Bits port map ( CLK => CLK, 													
+															 EN => '1',
+															 D(31 downto 0) => FioReadData(31 downto 0),
+															 Q(31 downto 0) => FioData(31 downto 0));
+															 
+		RegDstMUX: oneBitMux_5bits port map ( Control => RegDst,
+													InputA(4 downto 0) =>  FioInstr(20 downto 16),						
+													InputB(4 downto 0) => 	FioInstr(15 downto 11),	
+													Output(4 downto 0) => FioA3(4 downto 0));
+		
+		MemtoRegMUX: oneBitMux port map ( Control => MemtoReg,
+													InputA(31 downto 0) => FioALUOut(31 downto 0),						
+													InputB(31 downto 0) => FioData(31 downto 0),
+													Output(31 downto 0) => FioWD3(31 downto 0));
+													
+		RF: registerFile port map ( clk => CLK,
+															A1(4 DOWNTO 0) => FioInstr(25 downto 21),
+															A2(4 DOWNTO 0) => FioInstr(20 downto 16),
+															A3(4 DOWNTO 0) => FioA3(4 downto 0),
+															WD3(31 DOWNTO 0) => FioWD3(31 downto 0),
+															WE3 => RegWrite,
+															RD1(31 DOWNTO 0) => FioRD1toRegD1(31 downto 0),
+															RD2(31 DOWNTO 0) => FioRD2toRegD2(31 downto 0));
+				
+		RD1Register: register32Bits port map ( CLK => CLK, 													
+															 EN => '1',
+															 D(31 downto 0) => FioRD1toRegD1(31 downto 0),
+															 Q(31 downto 0) => FioA(31 downto 0));
+															 
+		RD2Register: register32Bits port map ( CLK => CLK, 													
+															 EN => '1',
+															 D(31 downto 0) => FioRD2toRegD2(31 downto 0),
+															 Q(31 downto 0) => FioB(31 downto 0));		
+															 
+		SignExtend: SignExtender port map ( Input(15 DOWNTO 0) => FioInstr(15 DOWNTO 0), 									
+														Output(31 DOWNTO 0) => FioSignImm(31 DOWNTO 0));
+		
+		ALUSrcAMUX: oneBitMux port map ( Control => ALUSrcA,
+													InputA(31 downto 0) => FioPcOut(31 downto 0),						
+													InputB(31 downto 0) => FioA(31 downto 0),
+													Output(31 downto 0) => FioSrcA(31 downto 0));
+		
+		ALUSrcBMUX: twoBitMux port map ( Control(1 downto 0) => ALUSrcB(1 downto 0),
+													InputA(31 downto 0) => FioB(31 downto 0),						
+													InputB(31 downto 0) => x"00000004",
+													InputC(31 downto 0) => FioSignImm(31 downto 0),						
+													InputD(31 downto 0) => FioShiftOut(31 downto 0),
+													Output(31 downto 0) => FioSrcB(31 downto 0));
+													
+		LF2: leftShift2 port map ( entrada(31 downto 0) => FioSignImm(31 downto 0),
+													 saida(31 downto 0) => FioShiftOut(31 downto 0));
+		
+		ALUComponent: ALU port map ( ALUControl(2 DOWNTO 0) => ALUControl(2 downto 0),
+									ALUSrcA(31 DOWNTO 0) => FioSrcA(31 downto 0),
+									ALUSrcB(31 DOWNTO 0) => FioSrcB(31 downto 0),
+									ALUResult(31 DOWNTO 0) => FioALUResult(31 downto 0),
+									Zero => Zero);
+									
+		ALURegister: register32Bits port map ( CLK => CLK, 													
+															 EN => '1',
+															 D(31 downto 0) => FioALUResult(31 downto 0),
+															 Q(31 downto 0) => FioALUOut(31 downto 0));
+															 
+		LF2Jump: leftShift2_26to28bits port map (
+												 entrada(25 downto 0) => FioInstr(25 downto 0),
+												 saida(27 downto 0) => FioAddresShiftOut(27 downto 0));	
+													 
+		PCSrcMUX: twoBitMux port map ( Control(1 downto 0) => PCSrc(1 downto 0),
+													InputA(31 downto 0) => FioALUResult(31 downto 0),						
+													InputB(31 downto 0) => FioALUOut,
+													InputC(31 downto 0) => Concatenated,						
+													InputD(31 downto 0) => x"00000000",
+													Output(31 downto 0) => FioPCIn(31 downto 0));
+		
+end RTL ;
